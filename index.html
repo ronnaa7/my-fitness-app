@@ -10,9 +10,6 @@
   <!-- Google Fonts - Inter for a modern look -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Netlify Identity Widget Script -->
-  <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-
   <!-- React & ReactDOM CDNs -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -23,17 +20,19 @@
   </script>
   <!-- Babel CDN for in-browser JSX transpilation -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- ZXing Barcode Scanner Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/zxing.min.js"></script>
 
   <!-- Firebase JavaScript SDKs via CDN -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-    import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
     // Make Firebase objects globally accessible for the Babel script
     window.firebase = {
       initializeApp,
-      getAuth, signInWithCustomToken, onAuthStateChanged, signOut,
+      getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut,
       getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove
     };
   </script>
@@ -44,76 +43,74 @@
       font-family: 'Inter', sans-serif;
       direction: rtl; /* Set text direction to right-to-left */
       text-align: right; /* Align text to the right */
-      background-color: #18181b; /* Darker background for the entire page */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-      box-sizing: border-box;
+      background-color: #0a0a0a; /* Darker background */
+      color: #e5e5e5; /* Lighter default text color */
     }
     .container {
-      background-color: #ffffff;
+      background-color: #171717; /* Even darker container */
       padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      border-radius: 15px; /* Rounded corners */
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Subtle shadow */
       max-width: 500px;
       width: 100%;
       text-align: center;
     }
     h1, h2 {
-      color: #1f2937;
+      color: #f5f5f5; /* Lighter headings */
       margin-bottom: 20px;
     }
     input[type="email"],
     input[type="password"],
     input[type="text"],
-    input[type="number"],
-    textarea {
+    input[type="number"], /* Added number type */
+    textarea { /* Added textarea to input styles */
       width: 100%;
       padding: 12px;
       margin-bottom: 15px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      border: 1px solid #3f3f46; /* Darker border */
+      border-radius: 8px; /* Rounded corners for input fields */
       box-sizing: border-box;
       font-size: 16px;
-      text-align: right;
+      text-align: right; /* Align text input to the right */
+      background-color: #262626; /* Dark input background */
+      color: #e5e5e5;
     }
     button {
-      background-color: #4f46e5;
-      color: white;
+      background-color: #f59e0b; /* Amber color for primary buttons */
+      color: #171717; /* Dark text on amber button */
       padding: 12px 20px;
       border: none;
-      border-radius: 8px;
+      border-radius: 8px; /* Rounded corners for buttons */
       cursor: pointer;
       font-size: 16px;
       width: 100%;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.3s ease; /* Smooth transition on hover */
+      font-weight: bold;
     }
     button:hover {
-      background-color: #4338ca;
+      background-color: #fbbf24; /* Lighter amber on hover */
     }
     hr {
       border: 0;
-      border-top: 1px solid #e5e7eb;
+      border-top: 1px solid #3f3f46; /* Darker separator */
       margin: 30px 0;
     }
     .section-title {
       font-size: 20px;
       font-weight: 600;
-      color: #374151;
+      color: #d4d4d8;
       margin-bottom: 15px;
     }
     .logged-in-info p {
       font-size: 18px;
       margin-bottom: 10px;
-      color: #4b5563;
+      color: #a3a3a3;
     }
     .logout-button {
-      background-color: #dc2626;
+      background-color: #ef4444; /* Red color for logout button */
     }
     .logout-button:hover {
-      background-color: #b91c1c;
+      background-color: #f87171; /* Lighter red on hover */
     }
 
     /* Styles from the React code */
@@ -129,27 +126,40 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .loader{border:4px solid #f3f3f340;border-top:4px solid #f59e0b;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     .ai-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; transition: background-color 0.2s; cursor: pointer; }
+    /* Added style for icon placeholders */
     .icon-placeholder {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 20px;
-      height: 20px;
-      font-size: 1rem;
-      color: currentColor;
+      width: 20px; /* Adjust size as needed */
+      height: 20px; /* Adjust size as needed */
+      font-size: 1rem; /* Adjust font size of emoji/text */
+      color: currentColor; /* Inherit color from parent */
+    }
+    #scanner-video {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"></div> <!-- This is where your React app will be mounted -->
 
+  <!-- Your React application code, using Babel for JSX transpilation -->
   <script type="text/babel">
+    // React hooks and functions are now available via window.React implicitly
+    // from the <script> block above that exposes them globally.
+    // No explicit destructuring needed here.
+
+    // Import Firebase functions from the global window.firebase object
     const { 
-      initializeApp, getAuth, signInWithCustomToken, onAuthStateChanged, signOut,
-      getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, serverTimestamp, updateDoc, arrayUnion, arrayRemove
+      initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut,
+      getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove
     } = window.firebase;
 
     // --- Firebase Configuration ---
+    // The configuration object for your Firebase project.
     const firebaseConfig = {
       apiKey: "AIzaSyD6H31387y3cjr5WqjDXlPvzE97hxxvVWc",
       authDomain: "re-studio.firebaseapp.com",
@@ -160,7 +170,10 @@
       measurementId: "G-2T4SGBVGD9"
     };
     
+    // The App ID for Firestore path construction.
     const appId = firebaseConfig.appId;
+
+    // Initialize Firebase services
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -170,8 +183,14 @@
 
     const ModalProvider = ({ children }) => {
         const [modal, setModal] = React.useState({ isOpen: false, title: '', content: null });
-        const showModal = (title, content) => setModal({ isOpen: true, title, content });
-        const hideModal = () => setModal({ isOpen: false, title: '', content: null });
+        const showModal = (title, content) => {
+            console.log("Showing Modal:", title);
+            setModal({ isOpen: true, title, content });
+        };
+        const hideModal = () => {
+            console.log("Hiding Modal");
+            setModal({ isOpen: false, title: '', content: null });
+        };
 
         return (
             <ModalContext.Provider value={{ showModal, hideModal }}>
@@ -189,14 +208,37 @@
         const [authLoading, setAuthLoading] = React.useState(true);
 
         React.useEffect(() => {
-            // This hook now just listens for auth state changes.
-            // It doesn't initiate any login by itself.
-            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            let unsubscribeFromAuthStateChanged;
+            console.log("useAuth: Initializing auth...");
+
+            const initializeAuth = async () => {
+                try {
+                    // In a live environment, custom tokens would be handled differently.
+                    // For a simple deploy, we'll default to anonymous sign-in.
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Firebase initial sign-in error:", error);
+                } finally {
+                    setAuthLoading(false);
+                    console.log("useAuth: Auth loading finished.");
+                }
+            };
+
+            unsubscribeFromAuthStateChanged = onAuthStateChanged(auth, (currentUser) => {
                 setUser(currentUser);
-                setAuthLoading(false); // Auth state is confirmed (either user or null)
+                console.log("useAuth: Auth state changed, user:", currentUser ? currentUser.uid : 'none');
             });
-            return () => unsubscribe(); // Cleanup listener
-        }, []);
+
+            if (authLoading) {
+                initializeAuth();
+            }
+
+            return () => {
+                if (unsubscribeFromAuthStateChanged) {
+                    unsubscribeFromAuthStateChanged();
+                }
+            };
+        }, [auth]);
 
         return { user, authLoading };
     }
@@ -209,16 +251,22 @@
                 setLoading(false);
                 return;
             }
+            console.log("useUserData: Fetching user data for:", userId);
             const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
             const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-                setUserData(docSnap.data() || null);
+                const data = docSnap.data();
+                setUserData(data || null);
                 setLoading(false);
+                console.log("useUserData: User data loaded:", data);
             }, (error) => {
                 console.error("Error fetching user data:", error);
                 setLoading(false);
             });
-            return () => unsubscribe();
-        }, [userId]);
+            return () => {
+                unsubscribe();
+                console.log("useUserData: Unsubscribed from user data.");
+            };
+        }, [userId, db, appId]);
 
         return { userData, loading };
     }
@@ -236,58 +284,25 @@
         const { user, authLoading } = useAuth(); 
         const { userData, loading: userDataLoading } = useUserData(user?.uid);
         const onboardingComplete = userData?.profile?.onboardingCompleted === true;
-        const totalLoading = authLoading || (user && userDataLoading);
 
-        // This effect will run once when the app loads to handle the initial Netlify user state.
-        React.useEffect(() => {
-            const netlifyUser = window.netlifyIdentity?.currentUser();
-            if (netlifyUser && !auth.currentUser) {
-                console.log("Netlify user found on load, triggering login flow.");
-                window.netlifyIdentity.trigger('login', netlifyUser);
-            }
-        }, []);
-
-
-        if (totalLoading) { 
+        if (authLoading || userDataLoading) { 
             return <FullScreenLoader />;
         }
 
-        // If no user is logged in to Firebase, show the LoginView
         if (!user) {
-            return <LoginView />;
+             return <FullScreenLoader>
+                        <div className="text-center text-red-400">
+                            <h2 className="text-2xl font-bold">שגיאת אתחול</h2>
+                            <p className="mt-2">לא ניתן לטעון את המשתמש. אנא רענן את הדף.</p>
+                        </div>
+                    </FullScreenLoader>;
         }
 
-        // If user is logged in but hasn't completed onboarding, show the wizard
         if (!onboardingComplete) { 
             return <OnboardingWizard user={user} />;
         }
-        
-        // Otherwise, show the main app
+
         return <MainAppView user={user} userData={userData} />;
-    }
-
-    // --- New: Login View Component ---
-    function LoginView() {
-        const handleLogin = () => {
-            if (window.netlifyIdentity) {
-                window.netlifyIdentity.open();
-            } else {
-                console.error("Netlify Identity widget not found.");
-            }
-        };
-
-        return (
-            <div className="bg-neutral-900 min-h-screen w-full flex flex-col justify-center items-center text-center p-4">
-                <div className="max-w-md w-full">
-                    <span className="text-6xl">🏋️</span>
-                    <h1 className="text-4xl font-bold text-white mt-4 mb-2">R.T Studio</h1>
-                    <p className="text-neutral-400 mb-8">התחבר או הירשם כדי להתחיל את מסע הכושר האישי שלך.</p>
-                    <button onClick={handleLogin} className="btn-primary w-full">
-                        התחברות / הרשמה
-                    </button>
-                </div>
-            </div>
-        );
     }
 
     // --- 1. Onboarding Wizard Component ---
@@ -296,9 +311,8 @@
         const [step, setStep] = React.useState(1);
         const [isGenerating, setIsGenerating] = React.useState(false);
         const [previewPlan, setPreviewPlan] = React.useState(null);
-        // Pre-fill name from Firebase user profile if available
         const [formData, setFormData] = React.useState({
-            name: user.displayName || '', age: '', gender: 'גבר', height: '', current_weight: '', occupation: '',
+            name: '', age: '', gender: 'גבר', height: '', current_weight: '', occupation: '',
             health_conditions: '', injuries: '', dietary_restrictions: '', 
             alcohol: 'לעתים רחוקות', water_intake: '', late_night_eating: false,
             training_frequency: '3-4', specific_goals: 'ירידה באחוזי שומן',
@@ -332,11 +346,19 @@
                         "days": {
                             "אימון A": [
                                 { "id": "string", "name": "string", "sets": "string", "reps": "string", "weight": "string", "target_muscle": "string (e.g., 'חזה', 'גב עליון', 'ארבע ראשי')", "video_search_query": "string", "alternative_exercise": "string" }
+                            ],
+                            "אימון B": [
+                                { "id": "string", "name": "string", "sets": "string", "reps": "string", "weight": "string", "target_muscle": "string (e.g., 'חזה', 'גב עליון', 'ארבע ראשי')", "video_search_query": "string", "alternative_exercise": "string" }
                             ]
                         }
                     },
                     "nutrition_plan": {
-                        "summary": { "daily_calories": "string", "protein_grams": "string", "carbs_grams": "string", "fat_grams": "string" },
+                        "summary": {
+                            "daily_calories": "string",
+                            "protein_grams": "string",
+                            "carbs_grams": "string",
+                            "fat_grams": "string"
+                        },
                         "meals": [
                             {
                                 "title": "string",
@@ -353,9 +375,15 @@
                             }
                         ],
                         "component_alternatives": {
-                            "protein_sources": [ { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" } ],
-                            "carb_sources": [ { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" } ],
-                            "fat_sources": [ { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" } ]
+                            "protein_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ],
+                            "carb_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ],
+                            "fat_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ]
                         }
                     }
                 }
@@ -393,7 +421,7 @@
             try {
                 const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 await setDoc(userDocRef, {
-                    profile: { ...formData, onboardingCompleted: true, liked_exercises: [], disliked_exercises: [], email: user.email },
+                    profile: { ...formData, onboardingCompleted: true, liked_exercises: [], disliked_exercises: [] },
                     plan: previewPlan,
                     dailyTracking: { water: 0, calories: 0, workoutCompleted: false },
                     createdAt: serverTimestamp()
@@ -721,6 +749,24 @@
         React.useEffect(() => { 
             setPlan(userData.plan);
         }, [userData.plan]);
+        
+        const handleFoodScanned = async (caloriesToAdd) => {
+            if (!user || isNaN(caloriesToAdd)) return;
+
+            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+            try {
+                // Fetch the latest tracking data first to avoid race conditions
+                const docSnap = await getDoc(userDocRef);
+                const currentTracking = docSnap.data()?.dailyTracking || { calories: 0 };
+                const newCalories = (currentTracking.calories || 0) + Number(caloriesToAdd);
+                
+                await updateDoc(userDocRef, { 'dailyTracking.calories': newCalories });
+                showModal('הצלחה', `${caloriesToAdd} קלוריות נוספו למעקב היומי שלך.`);
+            } catch(e) {
+                console.error("Error updating calories from scan:", e);
+                showModal("שגיאה", "שגיאה בעדכון הקלוריות.");
+            }
+        };
 
         const handleGenerateQuickMealForMeal = async (mealIndex, mealTitle, mealTime, currentOptions) => {
             if (!user) {
@@ -784,24 +830,36 @@
 
             try {
                 const rawResponse = await callGemini(quickMealPrompt, true);
+                console.log("Quick Meal AI Response (raw object):", rawResponse);
+
+                // FIX: Handle cases where the AI wraps the response in an array.
                 const newOption = Array.isArray(rawResponse) ? rawResponse[0] : rawResponse;
 
+                // More robust validation and data correction
                 if (!newOption || typeof newOption !== 'object') {
                     throw new Error("AI did not return a valid object.");
                 }
+
+                // Correct or set option_name if missing
                 if (!newOption.option_name) {
+                    console.warn("AI response missing 'option_name', assigning default name.");
                     newOption.option_name = newQuickMealOptionName;
                 }
+
+                // Validate that 'items' and 'nutrition_summary' exist and are structured correctly.
                 if (!Array.isArray(newOption.items) || newOption.items.length === 0 || typeof newOption.nutrition_summary !== 'object') {
+                    console.error("AI response is missing or has malformed 'items' or 'nutrition_summary'", newOption);
                     throw new Error("AI response is missing required fields (items or nutrition summary).");
                 }
                 
+                // Construct the fully updated meals array once.
                 const updatedMeals = JSON.parse(JSON.stringify(plan.nutrition_plan.meals));
                 if (!Array.isArray(updatedMeals[mealIndex].options)) {
                     updatedMeals[mealIndex].options = [];
                 }
                 updatedMeals[mealIndex].options.push(newOption);
 
+                // Update the local state
                 setPlan(prevPlan => ({
                     ...prevPlan,
                     nutrition_plan: {
@@ -810,6 +868,7 @@
                     }
                 }));
 
+                // Persist the updated meals array to Firestore
                 const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 await updateDoc(userDocRef, { 
                     'plan.nutrition_plan.meals': updatedMeals
@@ -818,7 +877,10 @@
                 showModal('ארוחה זריזה נוצרה!', `אופציית "${newOption.option_name}" נוספה בהצלחה.`);
             } catch (error) {
                 console.error("Failed to generate quick meal:", error);
-                showModal("שגיאה ביצירת ארוחה זריזה", `אירעה שגיאה. נסה שוב בעוד מספר רגעים.`);
+                const userErrorMessage = error.message.includes("AI response is missing") 
+                    ? "תשובת הבינה המלאכותית לא הייתה תקינה. נסו שוב."
+                    : `אירעה שגיאה. נסה שוב בעוד מספר רגעים.`;
+                showModal("שגיאה ביצירת ארוחה זריזה", userErrorMessage);
             }
         };
 
@@ -896,6 +958,8 @@
                         <span className="icon-placeholder">💾</span>
                     </button>
                 </div>
+
+                <FoodScanner onFoodScanned={handleFoodScanned} />
 
                 <Card title="תוכנית אימונים">
                     <p className="text-amber-400 font-semibold">{workout_plan?.split_type}</p>
@@ -989,6 +1053,168 @@
             </div>
         );
     }
+
+    function FoodScanner({ onFoodScanned }) {
+        const { showModal, hideModal } = useModal();
+        const videoRef = React.useRef(null);
+        const codeReaderRef = React.useRef(null);
+
+        const stopScan = () => {
+            if (codeReaderRef.current) {
+                codeReaderRef.current.reset();
+                codeReaderRef.current = null;
+            }
+            hideModal();
+        };
+
+        const startScan = async () => {
+            if (typeof ZXing === 'undefined') {
+                showModal("שגיאה", "סורק הברקודים לא נטען. נסה לרענן את הדף.");
+                return;
+            }
+
+            try {
+                codeReaderRef.current = new ZXing.BrowserMultiFormatReader();
+                const videoInputDevices = await codeReaderRef.current.listVideoInputDevices();
+                if (videoInputDevices.length === 0) {
+                    showModal("שגיאה", "לא נמצאה מצלמה.");
+                    return;
+                }
+                
+                const selectedDeviceId = videoInputDevices[0].deviceId;
+                showModal("סריקת ברקוד", <ScannerModalContent videoRef={videoRef} stopScan={stopScan} />);
+
+                codeReaderRef.current.decodeFromVideoDevice(selectedDeviceId, videoRef.current, async (result, err) => {
+                    if (result) {
+                        const barcode = result.getText();
+                        console.log("Barcode detected:", barcode);
+
+                        // Vibrate on success
+                        if ('vibrate' in navigator) {
+                            navigator.vibrate(200);
+                        }
+                        
+                        // Stop the scanner and close the modal immediately
+                        stopScan();
+                        
+                        // Show a loading modal while fetching data
+                        showModal("מאחזר נתונים...", <LoadingSpinner />);
+
+                        try {
+                            const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name_he,product_name,nutriments,image_front_url`);
+                            if (!response.ok) throw new Error('Network response was not ok.');
+                            
+                            const data = await response.json();
+                            console.log("Open Food Facts API response:", data);
+
+                            if (data.status === 1 && data.product) {
+                                const product = data.product;
+                                const nutriments = product.nutriments || {};
+                                const productData = {
+                                    name: product.product_name_he || product.product_name || "שם לא ידוע",
+                                    imageUrl: product.image_front_url || null,
+                                    calories_100g: nutriments['energy-kcal_100g'] || nutriments['energy_100g'] / 4.184 || 0,
+                                    protein_100g: nutriments.proteins_100g || 0,
+                                    carbs_100g: nutriments.carbohydrates_100g || 0,
+                                    fat_100g: nutriments.fat_100g || 0,
+                                };
+                                showModal("תוצאות סריקה", <ScanResultContent product={productData} onAdd={onFoodScanned} />);
+                            } else {
+                                showModal("שגיאה", `מוצר עם ברקוד ${barcode} לא נמצא במאגר.`);
+                            }
+                        } catch (fetchError) {
+                            console.error("Failed to fetch product data:", fetchError);
+                            showModal("שגיאת רשת", "לא הצלחנו לאחזר נתונים עבור הברקוד.");
+                        }
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error("Barcode scanning error:", err);
+                    }
+                });
+            } catch (err) {
+                console.error("Camera access or scanner initialization error:", err);
+                let errorMessage = "שגיאה בהפעלת המצלמה.";
+                if (err.name === "NotAllowedError") {
+                    errorMessage = "אנא אשר גישה למצלמה כדי להשתמש בסורק.";
+                }
+                showModal("שגיאת מצלמה", errorMessage);
+            }
+        };
+
+        return (
+            <Card title="סורק תזונה">
+                <p className="text-neutral-400 text-sm mb-4">
+                    סרוק ברקוד של מוצר מזון כדי לקבל את הערכים התזונתיים שלו ולהוסיף למעקב.
+                </p>
+                <button onClick={startScan} className="ai-btn bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 w-full">
+                    <span className="icon-placeholder">█|||█</span>
+                    הפעל סורק ברקודים
+                </button>
+            </Card>
+        );
+    }
+    
+    function ScannerModalContent({ videoRef, stopScan }) {
+        return (
+            <div>
+                <video id="scanner-video" ref={videoRef} playsInline></video>
+                <p className="text-center text-neutral-400 mt-2">מקם את הברקוד במרכז המסך</p>
+                <button onClick={stopScan} className="btn-secondary w-full mt-4">ביטול</button>
+            </div>
+        )
+    }
+
+    function ScanResultContent({ product, onAdd }) {
+        const { hideModal } = useModal();
+        const [servingSize, setServingSize] = React.useState('100');
+
+        const calculateValue = (valuePer100g) => {
+            if (!valuePer100g || !servingSize) return 0;
+            return ((parseFloat(valuePer100g) / 100) * parseFloat(servingSize)).toFixed(0);
+        };
+        
+        const totalCalories = calculateValue(product.calories_100g);
+
+        const handleAddClick = () => {
+            if (totalCalories > 0) {
+                 onAdd(Number(totalCalories));
+            }
+            hideModal();
+        };
+
+        return (
+            <div className="text-neutral-200">
+                {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-32 h-32 object-contain mx-auto mb-4 rounded-lg"/>}
+                <h4 className="text-xl font-bold text-amber-400 text-center">{product.name}</h4>
+                
+                <div className="my-4">
+                    <label htmlFor="servingSize" className="label-style">גודל מנה (גרם):</label>
+                    <input
+                        id="servingSize"
+                        type="number"
+                        value={servingSize}
+                        onChange={(e) => setServingSize(e.target.value)}
+                        className="input-style text-center"
+                    />
+                </div>
+                
+                <p className="text-center text-neutral-400 mb-4">ערכים עבור {servingSize || 0} גרם:</p>
+                
+                <div className="grid grid-cols-2 gap-4 text-center mb-6 bg-neutral-900/50 p-4 rounded-lg">
+                    <div><p className="text-sm text-neutral-400">קלוריות</p><p className="font-bold text-2xl text-white">{totalCalories}</p></div>
+                    <div><p className="text-sm text-neutral-400">חלבון</p><p className="font-bold text-lg text-white">{calculateValue(product.protein_100g)}ג'</p></div>
+                    <div><p className="text-sm text-neutral-400">פחמימה</p><p className="font-bold text-lg text-white">{calculateValue(product.carbs_100g)}ג'</p></div>
+                    <div><p className="text-sm text-neutral-400">שומן</p><p className="font-bold text-lg text-white">{calculateValue(product.fat_100g)}ג'</p></div>
+                </div>
+
+                <button onClick={handleAddClick} className="btn-primary w-full">
+                    הוסף {totalCalories} קלוריות למעקב
+                </button>
+                <p className="text-xs text-neutral-600 mt-2 text-center">מבוסס על נתונים מ-Open Food Facts.</p>
+            </div>
+        );
+    }
+
 
     function AlternativeGeneratorContent({ exerciseName, initialVideoQuery, userData }) {
         const { showModal, hideModal } = useModal();
@@ -1477,9 +1703,13 @@
         const { showModal } = useModal();
         const profile = userData?.profile;
 
-        const handleSignOut = () => {
-            if (window.netlifyIdentity) {
-                window.netlifyIdentity.logout();
+        const handleSignOut = async () => {
+            try {
+                await signOut(auth);
+                showModal("התנתקות", "התנתקת בהצלחה!");
+            } catch (error) {
+                showModal("שגיאה בהתנתקות", `אירעה שגיאה: ${error.message}`);
+                console.error("Error signing out:", error);
             }
         };
 
@@ -1504,7 +1734,7 @@
     }
 
     const FullScreenLoader = ({ children }) => (
-        <div className="bg-neutral-900 min-h-screen w-full flex flex-col justify-center items-center p-4">
+        <div className="bg-neutral-900 min-h-screen flex flex-col justify-center items-center p-4">
             {children || <div className="loader"></div>}
         </div>
     );
@@ -1555,6 +1785,9 @@
     );
 
     async function callGemini(promptOrChatHistory, expectJson = false) {
+        // WARNING: This API key is now hardcoded and exposed to the public.
+        // This is a major security risk. It is highly recommended to move this to a 
+        // serverless function (e.g., Netlify Functions) before deploying your site publicly.
         const apiKey = "AIzaSyBpU6_P_ChfHFuCMZiN6UgKilSpIfhM8ck"; 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         
@@ -1563,9 +1796,16 @@
             generationConfig.responseMimeType = "application/json";
         }
 
+        let contentsPayload;
+        if (Array.isArray(promptOrChatHistory)) {
+            contentsPayload = promptOrChatHistory;
+        } else {
+            contentsPayload = [{ role: "user", parts: [{ text: promptOrChatHistory }] }];
+        }
+
         const payload = {
-            contents: Array.isArray(promptOrChatHistory) ? promptOrChatHistory : [{ role: "user", parts: [{ text: promptOrChatHistory }] }],
-            generationConfig
+            contents: contentsPayload,
+            generationConfig: generationConfig
         };
 
         try {
@@ -1583,68 +1823,32 @@
                 throw new Error(`Network error: ${response.status} - ${errorMessage}`);
             }
 
-            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+            if (!result || !result.candidates || result.candidates.length === 0 || !result.candidates[0].content || !result.candidates[0].content.parts || result.candidates[0].content.parts.length === 0 || !result.candidates[0].content.parts[0].text) {
                 console.error("AI response missing expected content structure:", result);
                 throw new Error("Empty or malformed response from AI.");
             }
 
             const extractedText = result.candidates[0].content.parts[0].text;
-            if (expectJson) {
+            if (expectJson && typeof extractedText === 'string') {
                 const jsonMatch = extractedText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-                const textToParse = jsonMatch ? jsonMatch[1] : extractedText;
+                let textToParse = jsonMatch ? jsonMatch[1] : extractedText;
+
                 try {
                     return JSON.parse(textToParse);
-                } catch (e) {
-                    console.error("Failed to parse JSON from AI response:", textToParse);
-                    throw new Error(`Invalid JSON format from AI: ${e.message}`);
+                } catch (innerParseError) {
+                    throw new Error(`Invalid JSON format from AI even after extraction attempt: ${textToParse}`);
                 }
             }
             return extractedText;
+            
         } catch (error) {
             console.error("Gemini API call failed:", error);
             throw error; 
         }
     }
-    
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(AppContainer, null));
-
-    // --- Netlify Identity Integration ---
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.on('login', async (user) => {
-        console.log('Netlify login successful for:', user.email);
-        window.netlifyIdentity.close();
-        
-        try {
-          const response = await fetch('/.netlify/functions/identity-login', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${user.token.access_token}`,
-            },
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Failed to get Firebase token: ${await response.text()}`);
-          }
-          
-          const { firebaseToken } = await response.json();
-          
-          await signInWithCustomToken(auth, firebaseToken);
-          console.log('Successfully signed into Firebase with custom token.');
-
-        } catch (error) {
-          console.error('Firebase custom sign-in failed:', error);
-          window.netlifyIdentity.logout();
-        }
-      });
-
-      window.netlifyIdentity.on('logout', () => {
-        console.log("Netlify user logged out. Signing out of Firebase.");
-        signOut(auth).catch((error) => {
-          console.error("Firebase Sign-Out Error:", error);
-        });
-      });
-    }
 
   </script>
 </body>
