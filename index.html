@@ -204,9 +204,12 @@
         const [loading, setLoading] = React.useState(true);
         React.useEffect(() => {
             if (!userId) {
+                setUserData(null);
                 setLoading(false);
                 return;
             }
+            // Reset loading state when userId changes
+            setLoading(true);
             const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
             const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
                 setUserData(docSnap.data() || null);
@@ -231,46 +234,80 @@
     }
 
     function App() {
-        const { user, authLoading } = useAuth(); 
-        const { userData, loading: userDataLoading } = useUserData(user?.uid);
+        const { user: firebaseUser, authLoading } = useAuth(); 
+        const { userData, loading: userDataLoading } = useUserData(firebaseUser?.uid);
         
-        // This effect handles the initial Netlify user check. It should only run once.
+        // This effect is the single source of truth for auth logic
         React.useEffect(() => {
-            if (window.netlifyIdentity) {
-                window.netlifyIdentity.on('init', user => {
-                    if (!user) {
-                        // If no one is logged in according to Netlify,
-                        // ensure we are also logged out of Firebase.
-                        if (auth.currentUser) {
-                            console.log("Netlify user not found on init, signing out of Firebase to sync state.");
-                            signOut(auth);
-                        }
-                    } else {
-                        // If a Netlify user exists, but we're not yet logged into Firebase,
-                        // trigger the login flow. This handles the redirect from Google/other providers.
-                         if (!auth.currentUser) {
-                            console.log("Netlify user found on init, triggering login flow.");
-                            window.netlifyIdentity.trigger('login', user);
-                        }
+            const handleLogin = async (netlifyUser) => {
+                console.log('Netlify user detected, attempting to sign into Firebase...');
+                if (window.netlifyIdentity) {
+                   window.netlifyIdentity.close();
+                }
+
+                try {
+                    const response = await fetch('/.netlify/functions/identity-login', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${netlifyUser.token.access_token}` },
+                    });
+                    if (!response.ok) throw new Error('Failed to get Firebase token');
+                    const { firebaseToken } = await response.json();
+                    await signInWithCustomToken(auth, firebaseToken);
+                    console.log('Successfully signed into Firebase.');
+                } catch (error) {
+                    console.error('Firebase custom sign-in failed:', error);
+                    if (window.netlifyIdentity) {
+                        window.netlifyIdentity.logout();
                     }
-                });
+                }
+            };
+
+            const handleLogout = () => {
+                console.log("Netlify logout detected. Signing out of Firebase.");
+                signOut(auth);
+            };
+            
+            if (window.netlifyIdentity) {
+                window.netlifyIdentity.on('login', handleLogin);
+                window.netlifyIdentity.on('logout', handleLogout);
+
+                // This handles the case where the page reloads (e.g., after Google auth)
+                const netlifyUser = window.netlifyIdentity.currentUser();
+                if (netlifyUser && !auth.currentUser) {
+                     handleLogin(netlifyUser);
+                }
             }
+
+            return () => {
+                if (window.netlifyIdentity) {
+                    window.netlifyIdentity.off('login', handleLogin);
+                    window.netlifyIdentity.off('logout', handleLogout);
+                }
+            };
         }, []);
 
-
-        if (authLoading || (user && userDataLoading)) { 
+        // Show a loader until Firebase auth state is resolved. This is the first gate.
+        if (authLoading) { 
             return <FullScreenLoader />;
         }
 
-        if (!user) {
+        // If Firebase has no user, they need to log in via Netlify.
+        if (!firebaseUser) {
             return <LoginView />;
         }
-
-        if (userData && userData.plan) {
-            return <MainAppView user={user} userData={userData} />;
+        
+        // If we have a Firebase user, but their specific app data is still loading, show a loader.
+        if (userDataLoading) {
+            return <FullScreenLoader />;
         }
         
-        return <OnboardingWizard user={user} />;
+        // If we have a user and their data, check if they have a plan.
+        if (userData && userData.plan) {
+            return <MainAppView user={firebaseUser} userData={userData} />;
+        }
+        
+        // If they have a user but no plan, they need to go through onboarding.
+        return <OnboardingWizard user={firebaseUser} />;
     }
 
     // --- New: Login View Component ---
@@ -1614,44 +1651,6 @@
     
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(AppContainer, null));
-
-    // --- Netlify Identity Integration ---
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.on('login', async (user) => {
-        console.log('Netlify login successful for:', user.email);
-        window.netlifyIdentity.close();
-        
-        try {
-          const response = await fetch('/.netlify/functions/identity-login', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${user.token.access_token}`,
-            },
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Failed to get Firebase token: ${await response.text()}`);
-          }
-          
-          const { firebaseToken } = await response.json();
-          
-          await signInWithCustomToken(auth, firebaseToken);
-          console.log('Successfully signed into Firebase with custom token.');
-
-        } catch (error) {
-          console.error('Firebase custom sign-in failed:', error);
-          window.netlifyIdentity.logout();
-        }
-      });
-
-      window.netlifyIdentity.on('logout', () => {
-        console.log("Netlify user logged out. Signing out of Firebase.");
-        signOut(auth).catch((error) => {
-          console.error("Firebase Sign-Out Error:", error);
-        });
-      });
-    }
-
   </script>
 </body>
 </html>
