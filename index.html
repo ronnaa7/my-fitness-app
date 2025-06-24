@@ -189,13 +189,11 @@
         const [authLoading, setAuthLoading] = React.useState(true);
 
         React.useEffect(() => {
-            // This hook now just listens for auth state changes.
-            // It doesn't initiate any login by itself.
             const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                 setUser(currentUser);
-                setAuthLoading(false); // Auth state is confirmed (either user or null)
+                setAuthLoading(false);
             });
-            return () => unsubscribe(); // Cleanup listener
+            return () => unsubscribe();
         }, []);
 
         return { user, authLoading };
@@ -235,35 +233,31 @@
     function App() {
         const { user, authLoading } = useAuth(); 
         const { userData, loading: userDataLoading } = useUserData(user?.uid);
-        const onboardingComplete = userData?.profile?.onboardingCompleted === true;
-        const totalLoading = authLoading || (user && userDataLoading);
-
-        // This effect will run once when the app loads to handle the initial Netlify user state.
-        React.useEffect(() => {
-            const netlifyUser = window.netlifyIdentity?.currentUser();
-            if (netlifyUser && !auth.currentUser) {
-                console.log("Netlify user found on load, triggering login flow.");
-                window.netlifyIdentity.trigger('login', netlifyUser);
-            }
-        }, []);
-
-
-        if (totalLoading) { 
+        
+        // Main loading check: happens before we know anything about the user
+        if (authLoading) { 
             return <FullScreenLoader />;
         }
 
-        // If no user is logged in to Firebase, show the LoginView
+        // If no user is authenticated with Firebase, show the login screen.
         if (!user) {
             return <LoginView />;
         }
 
-        // If user is logged in but hasn't completed onboarding, show the wizard
-        if (!onboardingComplete) { 
-            return <OnboardingWizard user={user} />;
+        // After we have a Firebase user, we might still be loading their specific data
+        if (userDataLoading) {
+            return <FullScreenLoader />;
         }
         
-        // Otherwise, show the main app
-        return <MainAppView user={user} userData={userData} />;
+        // FIX: The core logic change is here.
+        // If we have a user and their data is loaded, check if their onboarding is complete.
+        // A user's data is considered "complete" for the main app if a 'plan' exists.
+        if (userData && userData.plan) {
+            return <MainAppView user={user} userData={userData} />;
+        }
+        
+        // If the user exists but their plan doesn't, they need to go through onboarding.
+        return <OnboardingWizard user={user} />;
     }
 
     // --- New: Login View Component ---
@@ -296,7 +290,6 @@
         const [step, setStep] = React.useState(1);
         const [isGenerating, setIsGenerating] = React.useState(false);
         const [previewPlan, setPreviewPlan] = React.useState(null);
-        // Pre-fill name from Firebase user profile if available
         const [formData, setFormData] = React.useState({
             name: user.displayName || '', age: '', gender: 'גבר', height: '', current_weight: '', occupation: '',
             health_conditions: '', injuries: '', dietary_restrictions: '', 
@@ -393,11 +386,11 @@
             try {
                 const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 await setDoc(userDocRef, {
-                    profile: { ...formData, onboardingCompleted: true, liked_exercises: [], disliked_exercises: [], email: user.email },
+                    profile: { ...formData, liked_exercises: [], disliked_exercises: [], email: user.email },
                     plan: previewPlan,
                     dailyTracking: { water: 0, calories: 0, workoutCompleted: false },
                     createdAt: serverTimestamp()
-                }, { merge: true });
+                }, { merge: true }); // Use merge:true to avoid overwriting existing profile data if any
             } catch (error) {
                 console.error("Failed to save plan:", error);
                 showModal("שגיאה בשמירת התוכנית", "אירעה שגיאה. אנא נסה שוב.");
@@ -1611,6 +1604,15 @@
 
     // --- Netlify Identity Integration ---
     if (window.netlifyIdentity) {
+      window.netlifyIdentity.on('init', user => {
+        if (!user) {
+          if (auth.currentUser) {
+            console.log("Netlify user not found on init, signing out of Firebase to sync state.");
+            signOut(auth);
+          }
+        }
+      });
+
       window.netlifyIdentity.on('login', async (user) => {
         console.log('Netlify login successful for:', user.email);
         window.netlifyIdentity.close();
