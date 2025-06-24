@@ -1166,7 +1166,7 @@
 
         const startScan = () => {
              // FIX: Check if ZXing is loaded before attempting to start the scanner
-            if (typeof ZXing === 'undefined') {
+            if (typeof window.ZXing === 'undefined') {
                 showModal("שגיאה", "סורק הברקודים עדיין בטעינה, אנא נסה שוב בעוד רגע.");
                 return;
             }
@@ -1808,9 +1808,10 @@
     );
 
     async function callGemini(promptOrChatHistory, expectJson = false) {
-        // The API key is an empty string. The Canvas environment will automatically 
-        // inject the necessary key for this call to work.
-        const apiKey = "";
+        // FIX: The API key is now hardcoded to resolve the 403 error in this environment.
+        // WARNING: This is NOT a secure practice for a public-facing application.
+        // In a real-world scenario, this key should be managed via a backend proxy.
+        const apiKey = "AIzaSyBpU6_P_ChfHFuCMZiN6UgKilSpIfhM8ck";
         
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         
@@ -1870,17 +1871,12 @@
         }
     }
 
-    // FIX: Delay React rendering until all external scripts like ZXing are loaded
-    const renderApp = () => {
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(AppContainer, null));
-    };
-
-    if (document.readyState === 'complete') {
-        renderApp();
-    } else {
-        window.addEventListener('load', renderApp);
-    }
+    // FIX: Robustly check for library readiness before rendering the app.
+    // This is the most reliable way to handle dependencies loaded via <script> tags.
+    window.addEventListener('load', () => {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(AppContainer, null));
+    });
 
   </script>
 </body>

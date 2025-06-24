@@ -8,8 +8,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "firebase-admin": "^13.4.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronnaa7/my-fitness-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ronnaa7/my-fitness-app/issues"
+  },
+  "homepage": "https://github.com/ronnaa7/my-fitness-app#readme",
+  "description": ""
 }
