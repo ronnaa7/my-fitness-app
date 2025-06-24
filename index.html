@@ -234,7 +234,7 @@
         const { user, authLoading } = useAuth(); 
         const { userData, loading: userDataLoading } = useUserData(user?.uid);
         
-        // This effect will run once when the app loads to handle the initial Netlify user state.
+        // This effect handles the initial Netlify user check. It should only run once.
         React.useEffect(() => {
             if (window.netlifyIdentity) {
                 window.netlifyIdentity.on('init', user => {
